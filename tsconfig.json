@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    /* 1) Salida y directorios */
+    "rootDir": "src",
+    "outDir": "dist",
+
+    /* 2) Módulos y target para Node */
+    "target": "es2020",
+    "module": "commonjs",
+    "moduleResolution": "node",
+
+    /* 3) Interoperabilidad */
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+
+    /* 4) Seguridad de tipos */
+    "strict": true,
+    "skipLibCheck": true,
+
+    /* 5) Omisión de comprobación innecesaria */
+    "noUnusedLocals": false,
+    "noUnusedParameters": false
+  }
+}
