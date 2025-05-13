@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     /* 1) Salida y directorios */
-    "rootDir": "src",
+    "rootDir": "./",
     "outDir": "dist",
 
     /* 2) Módulos y target para Node */

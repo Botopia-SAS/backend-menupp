@@ -1,7 +1,4 @@
-// src/interfaces/credentials.ts
-
-/** Lo que devuelve la tabla company_credentials */
-export interface CompanyCredentials {
+export interface Credential {
   company_id: number;
   password_hash: string;
   reset_token?: string;
@@ -10,8 +7,7 @@ export interface CompanyCredentials {
   updated_at: string;
 }
 
-/** Lo que necesitas insertar al registrar */
-export interface CompanyCredentialsInsert {
+export interface CredentialInsert {
   company_id: number;
   password_hash: string;
 }
