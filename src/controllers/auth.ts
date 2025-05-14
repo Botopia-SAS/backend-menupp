@@ -2,11 +2,13 @@
 import type { Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import cookie from 'cookie';
 import { supabase } from '../config/supabase';
-import type { Company, CompanyInsert } from '../interfaces/company';
-import type { Credential, CredentialInsert } from '../interfaces/credentials';
+import type { CompanyInsert } from '../interfaces/company';
+import type { CredentialInsert } from '../interfaces/credentials';
 
 const JWT_SECRET = process.env.JWT_SECRET!;
+const ONE_HOUR = 60 * 60; // en segundos
 
 /**
  * POST /auth/register
@@ -24,22 +26,18 @@ export const registerController = async (
       return;
     }
 
-    // src/controllers/auth.ts
-
-    // … dentro de registerController …
+    // 1) Creamos la compañía
     const { data: company, error: errComp } = await supabase
-      .from('companies')   // <- pasamos solo el nombre de la tabla como string
-      .insert({ name, email, mobile })              // <- ya no lleva el <CompanyInsert> aquí
-      .select('*')                                  // <- le decimos que nos devuelva la fila completa
-      .single();                                    // <- así TS sabe que company tiene id: number
-
+      .from('companies')
+      .insert({ name, email, mobile })
+      .select('*')
+      .single();
     if (errComp || !company) {
       throw errComp ?? new Error('Error creando empresa');
     }
 
-    // Ahora company.id existe y funciona sin error de TS
+    // 2) Hasheamos la contraseña y guardamos credenciales
     const password_hash = await bcrypt.hash(password, 10);
-
     const { error: errCreds } = await supabase
       .from('credentials')
       .insert<CredentialInsert>({
@@ -47,15 +45,30 @@ export const registerController = async (
         password_hash,
       });
     if (errCreds) {
-      // si falla, limpiamos la empresa creada
+      // rollback
       await supabase.from('companies').delete().eq('id', company.id);
       throw errCreds;
     }
 
-    // 3) Emitimos JWT
-    const token = jwt.sign({ userId: company.id }, JWT_SECRET, { expiresIn: '1h' });
+    // 3) Generamos el JWT
+    const token = jwt.sign({ userId: company.id }, JWT_SECRET, {
+      expiresIn: '1h',
+    });
 
-    res.status(201).json({ token, user: company });
+    // 4) Enviamos el token en cookie HttpOnly
+    res.setHeader(
+      'Set-Cookie',
+      cookie.serialize('token', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: ONE_HOUR,
+        path: '/',
+      })
+    );
+
+    // 5) Respondemos sólo con el usuario
+    res.status(201).json({ user: company });
   } catch (err: any) {
     next(err);
   }
@@ -88,7 +101,7 @@ export const loginController = async (
       return;
     }
 
-    // 2) Recuperamos el hash
+    // 2) Recuperamos hash de la contraseña
     const { data: creds, error: errCreds } = await supabase
       .from('credentials')
       .select('password_hash')
@@ -99,17 +112,49 @@ export const loginController = async (
       return;
     }
 
-    // 3) Comparamos la contraseña
+    // 3) Comparamos
     const valid = await bcrypt.compare(password, creds.password_hash);
     if (!valid) {
       res.status(401).json({ error: 'Credenciales inválidas.' });
       return;
     }
 
-    // 4) Emitimos JWT
-    const token = jwt.sign({ userId: company.id }, JWT_SECRET, { expiresIn: '1h' });
-    res.json({ token, user: company });
+    // 4) Generamos JWT
+    const token = jwt.sign({ userId: company.id }, JWT_SECRET, {
+      expiresIn: '1h',
+    });
+
+    // 5) Enviamos cookie HttpOnly
+    res.setHeader(
+      'Set-Cookie',
+      cookie.serialize('token', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: ONE_HOUR,
+        path: '/',
+      })
+    );
+
+    // 6) Respondemos sólo con el usuario
+    res.status(200).json({ user: company });
   } catch (err: any) {
     next(err);
   }
 };
+
+// src/controllers/auth.ts  (añádelo al final)
+export const logoutController = (_req: Request, res: Response) => {
+  res.setHeader(
+    'Set-Cookie',
+    cookie.serialize('token', '', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 0,
+      path: '/',
+    })
+  );
+  res.json({ ok: true });
+};
+

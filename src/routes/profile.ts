@@ -1,5 +1,6 @@
+// src/routes/profile.ts
 import { Router } from 'express';
-import { requireAuth, AuthRequest } from '../middleware/auth';
+import { requireAuth } from '../middleware/auth';
 import { profileController } from '../controllers/profile';
 
 export const profileRouter = Router();
@@ -7,7 +8,5 @@ export const profileRouter = Router();
 // Todas las peticiones a /profile/* pasarán por requireAuth
 profileRouter.use(requireAuth);
 
-// Ahora profileController podrá hacer:
-// const req2 = req as AuthRequest;
-// console.log('companyId:', req2.userId);
+// Ya encaja perfectamente porque profileController es un RequestHandler
 profileRouter.get('/', profileController);
