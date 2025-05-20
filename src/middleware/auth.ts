@@ -1,25 +1,33 @@
-// src/middleware/auth.ts
-import type { Request, Response, NextFunction, RequestHandler } from 'express';
-import jwt from 'jsonwebtoken';
-import cookie from 'cookie';
+import { RequestHandler } from 'express'
+import { supabaseService } from '../config/supabaseClient'
 
-// Extendemos la interfaz de Express.Request
-export interface AuthRequest extends Request {
-  userId: number;
-}
+export const authenticate: RequestHandler = async (req, res, next) => {
+  const auth = req.headers.authorization
+  console.log('[AUTH] Authorization header:', auth)
 
-const JWT_SECRET = process.env.JWT_SECRET!;
-
-export const requireAuth: RequestHandler = (req, res, next) => {
-  try {
-    const raw = req.headers.cookie;
-    if (!raw) throw new Error('No cookie');
-    const { token } = cookie.parse(raw);
-    if (!token) throw new Error('No token');
-    const payload = jwt.verify(token, JWT_SECRET) as { userId: number };
-    (req as AuthRequest).userId = payload.userId;
-    next();
-  } catch {
-    res.status(401).json({ error: 'No autenticado' });
+  if (!auth?.startsWith('Bearer ')) {
+    console.log('[AUTH] Token missing or malformed')
+    res.status(401).json({ error: 'Token missing or malformed' })
+    return
   }
-};
+
+  const token = auth.split(' ')[1]
+  console.log('[AUTH] Extracted token:', token)
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabaseService.auth.getUser(token)
+  console.log('[AUTH] getUser →', { user, authError })
+  if (authError || !user) {
+    console.log('[AUTH] Unauthorized')
+    res.status(401).json({ error: authError?.message || 'Unauthorized' })
+    return
+  }
+  (req as any).userId = user.id
+
+  req.userId = user.id
+  console.log('[AUTH] userId injected:', user.id)
+
+  next()
+}

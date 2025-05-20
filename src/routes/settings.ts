@@ -1,31 +1,30 @@
 // src/routes/settings.ts
-import { Router } from 'express'
-import { requireAuth } from '../middleware/auth'
+import { Router, RequestHandler } from 'express';
+import { authenticate } from '../middleware/auth';
 import {
-  getBrandSettings,
-  upsertBrandSettings,
-  getSocialLinks,
-  upsertSocialLinks,
-  getSurveys,
-  upsertSurveys,
-} from '../controllers/settings'
+  getBrand,
+  upsertBrand,
+  getSocial,
+  upsertSocial,
+  getSurvey,
+  upsertSurvey,
+} from '../controllers/settingsController';
 
-export const settingsRouter = Router()
+const router = Router();
 
-// Protegemos todas las rutas con JWT en cookie HttpOnly
-settingsRouter.use(requireAuth)
+// Aplica autenticación + RLS client a todas las rutas
+router.use(authenticate);
 
-// --- Brand settings ---
-settingsRouter
-  .get('/brand', getBrandSettings)         // GET  /settings/brand
-  .post('/brand', upsertBrandSettings)     // POST /settings/brand
+// Brand settings
+router.get('/brand', getBrand as unknown as RequestHandler);
+router.post('/brand', upsertBrand as unknown as RequestHandler);
 
-// --- Social links ---
-settingsRouter
-  .get('/social', getSocialLinks)          // GET  /settings/social
-  .post('/social', upsertSocialLinks)      // POST /settings/social
+// Social settings
+router.get('/social', getSocial as unknown as RequestHandler);
+router.post('/social', upsertSocial as unknown as RequestHandler);
 
-// --- Surveys ---
-settingsRouter
-  .get('/surveys', getSurveys)             // GET  /settings/surveys
-  .post('/surveys', upsertSurveys)         // POST /settings/surveys
+// Survey settings
+router.get('/survey', getSurvey as unknown as RequestHandler);
+router.post('/survey', upsertSurvey as unknown as RequestHandler);
+
+export default router;
